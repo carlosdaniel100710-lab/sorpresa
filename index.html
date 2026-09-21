@@ -160,7 +160,8 @@ const CONFIG = {
     'Gracias por darme la oportunidad de conocerte.',
     'Estas flores son para que sepas que lo disfruto 🌼'
   ],
-  spotify: '1dS4l6xmdgEhCZTAhdOm4N'   // ID de la canción en Spotify (Serendipity - BTS)
+  musica: 'musica.mp3',              // tu canción (archivo junto a index.html). Si no existe, se usa Spotify
+  spotify: '1dS4l6xmdgEhCZTAhdOm4N'   // canción de respaldo en Spotify (Serendipity - BTS)
 };
 
 /* ---------- Personalización por link (todo entra como texto, nunca como HTML) ---------- */
@@ -531,8 +532,14 @@ function frame() {
       S.lluvia += dt * 1.1;
       while (S.lluvia >= 1) { S.lluvia -= 1; nuevoPetalo(rand(0, W), -20, rand(-10, 10), rand(20, 40), rand(9, 15)); }
     }
-    if (!S.hint && ts > S.textEnd) { S.hint = true; pista.classList.add('on'); btnSon.classList.add('pulso'); }
+    if (!S.hint && ts > S.textEnd) {
+      S.hint = true;
+      if (usaMp3()) pista.textContent = 'Toca la pantalla ✨';
+      else { pista.textContent = 'Toca la pantalla ✨\u00a0·\u00a0Hay una canción 🎵'; btnSon.classList.add('pulso'); }
+      pista.classList.add('on');
+    }
   }
+  if (fundir) { audio.volume = Math.min(VOL, audio.volume + dt * VOL / 3); if (audio.volume >= VOL) fundir = false; }
   dibujaFloresTap(now);
   dibujaPetalos(dt, time);
   dibujaChispas(dt);
@@ -575,7 +582,20 @@ function panelMusica(abrir) {
   }
   btnSon.classList.remove('pulso');
 }
-btnSon.addEventListener('click', () => panelMusica());
+/* Música propia (musica.mp3): suena al abrir el ramo, con fundido de entrada */
+const VOL = .7;
+const audio = new Audio(); audio.loop = true; audio.preload = 'auto'; audio.volume = 0;
+let audioFalla = !CONFIG.musica, fundir = false, musicaIniciada = false;
+const usaMp3 = () => !audioFalla;
+function iconoSonido() { btnSon.textContent = usaMp3() ? (audio.paused ? '🔇' : '🔊') : '🎵'; }
+audio.addEventListener('error', () => { audioFalla = true; iconoSonido(); });
+audio.addEventListener('play', iconoSonido); audio.addEventListener('pause', iconoSonido);
+if (CONFIG.musica) audio.src = CONFIG.musica;
+
+btnSon.addEventListener('click', () => {
+  if (usaMp3()) { if (audio.paused) { audio.volume = VOL; audio.play().catch(() => {}); } else audio.pause(); iconoSonido(); }
+  else panelMusica();
+});
 $('cerrarMusica').addEventListener('click', () => panelMusica(false));
 
 /* ---------- Interacción ---------- */
@@ -585,6 +605,11 @@ function empezar() {
   S.play = true; S.t0 = performance.now(); S.lluvia = 0; S.hint = false;
   pista.classList.remove('on'); armaNota();
   btnRep.style.display = 'block'; btnSon.style.display = 'block';
+  if (usaMp3() && !musicaIniciada) {                   // solo la primera vez (el tap en "Abrir" permite el sonido)
+    musicaIniciada = true; audio.volume = 0; fundir = true;
+    audio.play().catch(() => { fundir = false; });
+  }
+  iconoSonido();
 }
 $('abrir').addEventListener('click', empezar);
 btnRep.addEventListener('click', empezar);
